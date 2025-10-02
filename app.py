@@ -52,7 +52,7 @@ def extract_json(blob: str | None)->Dict:
 
 app = Flask(__name__,static_folder="static",static_url_path="",template_folder="static")
 
-client = genai.Client(api_key='AIzaSyCAadQPkZUDGsvnub_hr0SPy8YZaQxbbQI')
+client = genai.Client(api_key='GEMINI_API_KEY')
 
 @app.get("/")
 def index_page(): return render_template('index.html')
