@@ -1,0 +1,28 @@
+{
+  "environment": "web",
+  "format": "html",
+  "prefix": "https://storage.googleapis.com",
+  "mainga": "UA-49880327-14",
+  "updated": "2025-10-03T20:53:55Z",
+  "id": "ai-ticket-summarizer-cloud-run",
+  "duration": 16,
+  "title": "Build an AI Ticket Summarizer on Cloud Run",
+  "authors": "Chukwuemeka Chukwurah",
+  "summary": "In this codelab, you'll build an AI-powered ticket summarizer, containerise this app and deploy to Cloud Run for public access.",
+  "source": "10zUtZLYBE-KdjgCwT6R7YNZ6gSlDvu1RgagEJDOpbG4",
+  "theme": "cloud",
+  "status": [
+    "published"
+  ],
+  "category": [
+    "cloud"
+  ],
+  "tags": [
+    "build-with-ai",
+    "cloud",
+    "pycon-ng-2025",
+    "web"
+  ],
+  "feedback": "https://github.com/emmanuerl/ai-ticket-summarizer",
+  "url": "ai-ticket-summarizer-cloud-run"
+}

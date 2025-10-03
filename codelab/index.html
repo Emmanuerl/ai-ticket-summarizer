@@ -1,0 +1,1089 @@
+
+<!doctype html>
+
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
+  <meta name="theme-color" content="#4F7DC9">
+  <meta charset="UTF-8">
+  <title>Build an AI Ticket Summarizer on Cloud Run</title>
+  <link rel="stylesheet" href="//fonts.googleapis.com/css?family=Source+Code+Pro:400|Roboto:400,300,400italic,500,700|Roboto+Mono">
+  <link rel="stylesheet" href="//fonts.googleapis.com/icon?family=Material+Icons">
+  <link rel="stylesheet" href="https://storage.googleapis.com/claat-public/codelab-elements.css">
+  <style>
+    .success {
+      color: #1e8e3e;
+    }
+    .error {
+      color: red;
+    }
+  </style>
+</head>
+<body>
+  <google-codelab-analytics gaid="UA-49880327-14" ga4id=""></google-codelab-analytics>
+  <google-codelab codelab-gaid=""
+                  codelab-ga4id=""
+                  id="ai-ticket-summarizer-cloud-run"
+                  title="Build an AI Ticket Summarizer on Cloud Run"
+                  environment="web"
+                  feedback-link="https://github.com/emmanuerl/ai-ticket-summarizer">
+    
+      <google-codelab-step label="Introduction" duration="0">
+        <p class="image-container"><img style="width: 227.43px" src="img/6a7a13ab90127873.png"><img style="width: 443.02px" src="img/299ecfd19537e7.png"></p>
+<p><strong>Last Updated:</strong> 2025-09-30</p>
+<h2 is-upgraded><strong>Why This?</strong></h2>
+<p>What makes this project powerful is the combination of Python, Cloud Run, and Gemini. Together, they let you build intelligent, serverless applications that can process data and generate insights automatically.</p>
+<h4 is-upgraded><strong>Cloud Run</strong></h4>
+<p>Cloud Run is a fully managed compute platform that runs your containers without you needing to manage servers. You package your Python app in a container, deploy it, and Cloud Run handles scaling up when requests increase, down to zero when idle. This makes it ideal for event-driven or API-driven workloads, where flexibility and cost efficiency are critical.</p>
+<h4 is-upgraded><strong>Python</strong></h4>
+<p>Python is one of the most versatile programming languages today. It&#39;s simple, readable, and has a rich ecosystem of libraries for web services, data processing, and AI integrations. In this codelab, Python acts as the <strong>glue</strong>—it listens for incoming events, calls the Gemini API, processes results, and pushes data to storage. If you already know Python, you&#39;re well on your way to building powerful serverless AI applications.</p>
+<h4 is-upgraded><strong>Gemini</strong></h4>
+<p>Gemini is Google&#39;s latest family of generative AI models, designed for text understanding, reasoning, and creation. With Gemini, you can summarise content, classify text, extract meaning, and generate human-like responses. In this codelab, Gemini will analyse incoming text and produce concise summaries, along with structured insights like sentiment and priority levels.</p>
+<p>Gemini turns unstructured text into actionable knowledge. Combined with Python and Cloud Run, you can build smart, scalable apps without worrying about infrastructure.</p>
+<h2 is-upgraded><strong>What you&#39;ll build</strong></h2>
+<p>In this codelab, you will build a <strong>Ticket Summarizer</strong> application. Your app will:</p>
+<ul>
+<li>Use <strong>Python</strong> to process incoming text and connect with the Gemini API.</li>
+<li>Run on <strong>Cloud Run</strong> for automatic scaling and a fully managed runtime.</li>
+<li>Use <strong>Gemini</strong> to generate summaries, sentiment tags, and priority levels for incoming tickets or emails.</li>
+</ul>
+<p>This codelab focuses on the fundamentals of connecting Python services with Cloud Run and Gemini. Non-relevant setup steps (e.g., container boilerplate) are provided so you can copy and paste, keeping the focus on integrating these technologies.</p>
+<p class="image-container"><img style="width: 417.50px" src="img/35ad63fc46de4cf5.png"></p>
+<aside class="warning"><p><strong>Note:</strong> This codelab focuses on the fundamentals of connecting Python services with Cloud Run and Gemini. Non-relevant setup steps (e.g HTML views) are provided so you can copy and paste, keeping the focus on integrating these technologies.</p>
+</aside>
+<h2 class="checklist" is-upgraded><strong>What you&#39;ll learn</strong></h2>
+<ul class="checklist">
+<li>How to containerise a Python app and deploy it on Cloud Run</li>
+<li>How to build reliable deployment pipelines using <strong>Cloud Build</strong> and <strong>Artifact Registry</strong></li>
+<li>How to call the <strong>Gemini API</strong> from Python.</li>
+<li>How to build a simple but powerful workflow that uses AI to analyse text.</li>
+</ul>
+<h2 is-upgraded><strong>What you&#39;ll need</strong></h2>
+<ul>
+<li>A Google Cloud project with <strong>Cloud Run</strong> and <strong>Gemini API</strong> enabled.</li>
+<li>Basic knowledge of <strong>Python</strong> (functions, dependencies, HTTP requests).</li>
+</ul>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Before You Begin" duration="3">
+        <h2 is-upgraded><strong>Create a project</strong></h2>
+<ol type="1" start="1">
+<li>In the <a href="https://console.cloud.google.com/" target="_blank">Google Cloud Console</a>, on the project selector page, select or create a Google Cloud <a href="https://cloud.google.com/resource-manager/docs/creating-managing-projects" target="_blank">project</a>.</li>
+<li>Make sure billing is enabled for your Cloud project. Learn how to <a href="https://cloud.google.com/billing/docs/how-to/verify-billing-enabled" target="_blank">check if billing is enabled on a project</a>.</li>
+<li>You&#39;ll use <a href="https://cloud.google.com/cloud-shell/" target="_blank">Cloud Shell</a>, a command-line environment running in Google Cloud that comes preloaded with all the CLI tools you&#39;ll need for this project.. Click Activate Cloud Shell at the top right of the Google Cloud console.</li>
+</ol>
+<p class="image-container"><img style="width: 380.00px" src="img/434fbe088decc5c.png"></p>
+<ol type="1" start="4">
+<li>Once connected to Cloud Shell, you check that you&#39;re already authenticated and that the project is set to your project ID using the following command:</li>
+</ol>
+<pre>gcloud auth list</pre>
+<ol type="1" start="5">
+<li>Run the following command in Cloud Shell to confirm that the gcloud command knows about your project.</li>
+</ol>
+<pre>gcloud config list project</pre>
+<ol type="1" start="6">
+<li>If your project is not set, use the following command to set it:</li>
+</ol>
+<pre>gcloud config set project &lt;YOUR_PROJECT_ID&gt;</pre>
+<h2 is-upgraded><strong>Get a Gemini API Key</strong></h2>
+<p>An API key is an encrypted string that you can use when calling Google Cloud APIs. You can create and manage all your Gemini API Keys from the<a href="http://aistudio.google.com" target="_blank"> Google AI Studio</a> API Keys page.</p>
+<ol type="1" start="1">
+<li>Go to the <a href="https://aistudio.google.com/api-keys" target="_blank">API Keys</a> section.</li>
+<li>Click the Create API Key button at the top right.</li>
+<li>Name the API key &#34;Ticket Summarizer&#34; and select or import the Google Cloud project you used in the previous step.</li>
+<li>Create your API Key and ensure it is stored securely.</li>
+</ol>
+<aside class="warning"><p><strong>Caution:</strong> Protect your API keys as you would your passwords. You should <strong>never</strong> check your API Key into a source repository, post it online, or share it. If your API Key is misused, it may result in it being revoked or more. </p>
+</aside>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Bootstrap The Frontend" duration="2">
+        <h2 is-upgraded><strong>What&#39;s our frontend?</strong></h2>
+<p>Our frontend is a simple input form for this codelab. The code has already been prepared and overly simplified to demonstrate only the concepts needed for this lab, and it offers minimal error handling. If you choose to reuse any of this code in a production application, make sure to handle any errors and thoroughly test all the code.</p>
+<h2 is-upgraded><strong>Set up Frontend?</strong></h2>
+<p>To set up the frontend, we will use the Cloud Shell Editor. This is a browser-based IDE that&#39;s fully integrated into Google Cloud. To launch the editor, click <img alt="Code Editor Button" style="width: 114.00px" src="img/28714fe9a9e1ee6.png"> <strong>Open Editor</strong> on the toolbar of the Cloud Shell window.</p>
+<p>On launching the editor:</p>
+<ol type="1" start="1">
+<li>Create a new folder for the project. Name the folder &#34;<strong>ticket-summarizer</strong>&#34;</li>
+</ol>
+<aside class="warning"><p><strong>Note</strong>: All subsequent commands, whether run in the Cloud Shell or Terminal, <strong>must</strong> be executed from this directory. At all times, ensure that your current working directory is set to this directory.</p>
+</aside>
+<ol type="1" start="3">
+<li>Create a &#34;<strong>static&#34; </strong>subfolder and create three files in this folder: <strong>index.html</strong>, <strong>styles.css</strong>, and <strong>script.js</strong></li>
+</ol>
+<p class="image-container"><img style="width: 552.00px" src="img/6b869091ca324dd8.png"></p>
+<ol type="1" start="4">
+<li>In the static files, paste the following:</li>
+</ol>
+<h3 is-upgraded><a href="https://github.com/Emmanuerl/ai-ticket-summarizer/blob/main/static/index.html" target="_blank">static/index.html</a></h3>
+<pre>&lt;!doctype html&gt;
+&lt;html lang=&#34;en&#34;&gt;
+    &lt;head&gt;
+        &lt;meta charset=&#34;UTF-8&#34; /&gt;
+        &lt;meta name=&#34;viewport&#34; content=&#34;width=device-width, initial-scale=1.0&#34; /&gt;
+        &lt;title&gt;Ticket Summarizer&lt;/title&gt;
+        &lt;link rel=&#34;stylesheet&#34; href=&#34;styles.css&#34; /&gt;
+    &lt;/head&gt;
+    &lt;body&gt;
+        &lt;div class=&#34;container&#34;&gt;
+            &lt;header class=&#34;header&#34;&gt;
+                &lt;h1&gt;🎫 Ticket Summarizer&lt;/h1&gt;
+                &lt;p class=&#34;subtitle&#34;&gt;
+                    Transform lengthy support tickets into concise summaries
+                &lt;/p&gt;
+            &lt;/header&gt;
+
+            &lt;main class=&#34;main-content&#34;&gt;
+                &lt;div class=&#34;input-section&#34;&gt;
+                    &lt;div class=&#34;input-group&#34;&gt;
+                        &lt;label for=&#34;ticketInput&#34;
+                            &gt;Paste your ticket content here:&lt;/label
+                        &gt;
+                        &lt;textarea
+                            id=&#34;ticketInput&#34;
+                            placeholder=&#34;Enter ticket details, customer messages, or support conversations...&#34;
+                            rows=&#34;10&#34;
+                        &gt;&lt;/textarea&gt;
+                    &lt;/div&gt;
+
+                    &lt;div class=&#34;options-group&#34;&gt;
+                        &lt;div class=&#34;option&#34;&gt;
+                            &lt;label for=&#34;summaryType&#34;&gt;Summary Type:&lt;/label&gt;
+                            &lt;select id=&#34;summaryType&#34;&gt;
+                                &lt;option value=&#34;brief&#34;&gt;
+                                    Brief (2-3 sentences)
+                                &lt;/option&gt;
+                                &lt;option value=&#34;detailed&#34;&gt;
+                                    Detailed (paragraph)
+                                &lt;/option&gt;
+                                &lt;option value=&#34;bullet&#34;&gt;Bullet Points&lt;/option&gt;
+                            &lt;/select&gt;
+                        &lt;/div&gt;
+
+                        &lt;div class=&#34;option&#34;&gt;
+                            &lt;label for=&#34;priority&#34;&gt;Priority Level:&lt;/label&gt;
+                            &lt;select id=&#34;priority&#34;&gt;
+                                &lt;option value=&#34;auto detect&#34;&gt;Auto-detect&lt;/option&gt;
+                                &lt;option value=&#34;low&#34;&gt;Low&lt;/option&gt;
+                                &lt;option value=&#34;medium&#34;&gt;Medium&lt;/option&gt;
+                                &lt;option value=&#34;high&#34;&gt;High&lt;/option&gt;
+                                &lt;option value=&#34;urgent&#34;&gt;Urgent&lt;/option&gt;
+                            &lt;/select&gt;
+                        &lt;/div&gt;
+                    &lt;/div&gt;
+
+                    &lt;button id=&#34;summarizeBtn&#34; class=&#34;btn btn-primary&#34;&gt;
+                        &lt;span class=&#34;btn-text&#34;&gt;Summarize Ticket&lt;/span&gt;
+                        &lt;div class=&#34;spinner&#34; style=&#34;display: none&#34;&gt;&lt;/div&gt;
+                    &lt;/button&gt;
+                &lt;/div&gt;
+
+                &lt;div class=&#34;output-section&#34; style=&#34;display: none&#34;&gt;
+                    &lt;div class=&#34;summary-card&#34;&gt;
+                        &lt;h3&gt;📋 Summary&lt;/h3&gt;
+                        &lt;div id=&#34;summaryOutput&#34; class=&#34;summary-content&#34;&gt;&lt;/div&gt;
+                    &lt;/div&gt;
+
+                    &lt;div class=&#34;metadata-card&#34;&gt;
+                        &lt;h3&gt;📊 Analysis&lt;/h3&gt;
+                        &lt;div class=&#34;metadata-grid&#34;&gt;
+                            &lt;div class=&#34;metadata-item&#34;&gt;
+                                &lt;span class=&#34;label&#34;&gt;Priority:&lt;/span&gt;
+                                &lt;span
+                                    id=&#34;detectedPriority&#34;
+                                    class=&#34;value priority-badge&#34;
+                                &gt;&lt;/span&gt;
+                            &lt;/div&gt;
+                            &lt;div class=&#34;metadata-item&#34;&gt;
+                                &lt;span class=&#34;label&#34;&gt;Category:&lt;/span&gt;
+                                &lt;span id=&#34;category&#34; class=&#34;value&#34;&gt;&lt;/span&gt;
+                            &lt;/div&gt;
+                            &lt;div class=&#34;metadata-item&#34;&gt;
+                                &lt;span class=&#34;label&#34;&gt;Sentiment:&lt;/span&gt;
+                                &lt;span id=&#34;sentiment&#34; class=&#34;value&#34;&gt;&lt;/span&gt;
+                            &lt;/div&gt;
+                        &lt;/div&gt;
+                    &lt;/div&gt;
+
+                    &lt;div class=&#34;actions&#34;&gt;
+                        &lt;button id=&#34;copyBtn&#34; class=&#34;btn btn-secondary&#34;&gt;
+                            📋 Copy Summary
+                        &lt;/button&gt;
+                        &lt;button id=&#34;clearBtn&#34; class=&#34;btn btn-outline&#34;&gt;
+                            🗑️ Clear All
+                        &lt;/button&gt;
+                    &lt;/div&gt;
+                &lt;/div&gt;
+            &lt;/main&gt;
+
+            &lt;footer class=&#34;footer&#34;&gt;
+                &lt;p&gt;&amp;copy; 2025 Ticket Summarizer - PyCon NG&lt;/p&gt;
+            &lt;/footer&gt;
+        &lt;/div&gt;
+
+        &lt;div id=&#34;toast&#34; class=&#34;toast&#34; style=&#34;display: none&#34;&gt;&lt;/div&gt;
+
+        &lt;script src=&#34;script.js&#34;&gt;&lt;/script&gt;
+    &lt;/body&gt;
+&lt;/html&gt;</pre>
+<h3 is-upgraded><a href="https://github.com/Emmanuerl/ai-ticket-summarizer/blob/main/static/styles.css" target="_blank">static/styles.css</a></h3>
+<pre>* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: &#34;Courier New&#34;, Monaco, &#34;Lucida Console&#34;, monospace;
+    line-height: 1.5;
+    color: #000;
+    background: #f5f5f5;
+    min-height: 100vh;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.header {
+    text-align: center;
+    margin-bottom: 40px;
+    color: #000;
+    border-bottom: 2px solid #000;
+    padding-bottom: 20px;
+}
+
+.header h1 {
+    font-size: 2.5rem;
+    font-weight: normal;
+    margin-bottom: 10px;
+    letter-spacing: 2px;
+}
+
+.subtitle {
+    font-size: 1rem;
+    font-weight: normal;
+}
+
+.main-content {
+    background: #f5f5f5;
+    border: 2px solid #000;
+    overflow: hidden;
+}
+
+.input-section {
+    padding: 40px;
+    background: #e8e8e8;
+    border-bottom: 2px solid #000;
+}
+
+.input-group {
+    margin-bottom: 30px;
+}
+
+.input-group label {
+    display: block;
+    margin-bottom: 10px;
+    font-weight: bold;
+    color: #000;
+    font-size: 1rem;
+}
+
+#ticketInput {
+    width: 100%;
+    padding: 15px;
+    border: 2px solid #000;
+    font-size: 0.9rem;
+    font-family: &#34;Courier New&#34;, Monaco, &#34;Lucida Console&#34;, monospace;
+    resize: vertical;
+    background: #f5f5f5;
+    color: #000;
+}
+
+#ticketInput:focus {
+    outline: none;
+    background: #e0e0e0;
+}
+
+.options-group {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.option label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: bold;
+    color: #000;
+}
+
+.option select {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #000;
+    font-size: 0.9rem;
+    font-family: &#34;Courier New&#34;, Monaco, &#34;Lucida Console&#34;, monospace;
+    background: #f5f5f5;
+    cursor: pointer;
+    color: #000;
+}
+
+.option select:focus {
+    outline: none;
+    background: #e0e0e0;
+}
+
+.btn {
+    padding: 12px 24px;
+    border: 2px solid #000;
+    font-size: 0.9rem;
+    font-weight: bold;
+    font-family: &#34;Courier New&#34;, Monaco, &#34;Lucida Console&#34;, monospace;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+    background: #f5f5f5;
+    color: #000;
+    transition: all 0.2s ease;
+}
+
+.btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+.btn-primary {
+    background: #000;
+    color: #fff;
+    width: 100%;
+    justify-content: center;
+}
+
+.btn-primary:hover:not(:disabled) {
+    background: #333;
+}
+
+.btn-secondary {
+    background: #f5f5f5;
+    color: #000;
+}
+
+.btn-secondary:hover {
+    background: #e0e0e0;
+}
+
+.btn-outline {
+    background: #f5f5f5;
+    color: #000;
+}
+
+.btn-outline:hover {
+    background: #000;
+    color: #f5f5f5;
+}
+
+.spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid #666;
+    border-radius: 50%;
+    border-top-color: #fff;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.output-section {
+    padding: 40px;
+    background: #f5f5f5;
+}
+
+.summary-card,
+.metadata-card {
+    margin-bottom: 30px;
+    padding: 20px;
+    border: 2px solid #000;
+    background: #f8f8f8;
+}
+
+.summary-card h3,
+.metadata-card h3 {
+    margin-bottom: 15px;
+    color: #000;
+    font-size: 1.1rem;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.summary-content {
+    font-size: 0.9rem;
+    line-height: 1.6;
+    color: #000;
+    font-family: &#34;Courier New&#34;, Monaco, &#34;Lucida Console&#34;, monospace;
+    white-space: pre-wrap;
+}
+
+.metadata-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+}
+
+.metadata-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.9rem;
+}
+
+.label {
+    font-weight: bold;
+    color: #000;
+    text-transform: uppercase;
+    min-width: 80px;
+}
+
+.value {
+    color: #000;
+    font-weight: normal;
+}
+
+.priority-badge {
+    padding: 4px 8px;
+    font-size: 0.8rem;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border: 1px solid #000;
+}
+
+.priority-low {
+    background: #f5f5f5;
+    color: #000;
+}
+
+.priority-medium {
+    background: #ccc;
+    color: #000;
+}
+
+.priority-high {
+    background: #666;
+    color: #fff;
+}
+
+.priority-urgent {
+    background: #000;
+    color: #fff;
+    animation: blink 1s infinite;
+}
+
+@keyframes blink {
+    0%,
+    50% {
+        opacity: 1;
+    }
+    51%,
+    100% {
+        opacity: 0.5;
+    }
+}
+
+.actions {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+    margin-top: 20px;
+}
+
+.toast {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 12px 16px;
+    border: 2px solid #000;
+    color: #000;
+    background: #f5f5f5;
+    font-weight: bold;
+    font-family: &#34;Courier New&#34;, Monaco, &#34;Lucida Console&#34;, monospace;
+    font-size: 0.9rem;
+    z-index: 1000;
+    text-transform: uppercase;
+}
+
+.toast-success {
+    background: #f5f5f5;
+    border-color: #000;
+}
+
+.toast-error {
+    background: #000;
+    color: #fff;
+    border-color: #000;
+}
+
+.toast-info {
+    background: #e0e0e0;
+    border-color: #000;
+}
+
+.footer {
+    text-align: center;
+    margin-top: 40px;
+    color: #666;
+    font-size: 0.8rem;
+    border-top: 1px solid #ccc;
+    padding-top: 20px;
+}
+
+@media (max-width: 768px) {
+    .container {
+        padding: 10px;
+    }
+
+    .header h1 {
+        font-size: 1.8rem;
+    }
+
+    .input-section,
+    .output-section {
+        padding: 20px;
+    }
+
+    .options-group {
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+
+    .actions {
+        flex-direction: column;
+    }
+
+    .btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .metadata-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .toast {
+        right: 10px;
+        left: 10px;
+        width: auto;
+    }
+}
+</pre>
+<h3 is-upgraded><a href="https://github.com/Emmanuerl/ai-ticket-summarizer/blob/main/static/script.js" target="_blank">static/script.js</a></h3>
+<pre>class TicketSummarizer {
+  constructor() {
+    this.initializeElements();
+    this.bindEvents();
+  }
+
+  initializeElements() {
+    this.ticketInput = document.getElementById(&#34;ticketInput&#34;);
+    this.summaryType = document.getElementById(&#34;summaryType&#34;);
+    this.priority = document.getElementById(&#34;priority&#34;);
+    this.summarizeBtn = document.getElementById(&#34;summarizeBtn&#34;);
+    this.outputSection = document.querySelector(&#34;.output-section&#34;);
+    this.summaryOutput = document.getElementById(&#34;summaryOutput&#34;);
+    this.detectedPriority = document.getElementById(&#34;detectedPriority&#34;);
+    this.category = document.getElementById(&#34;category&#34;);
+    this.sentiment = document.getElementById(&#34;sentiment&#34;);
+    this.copyBtn = document.getElementById(&#34;copyBtn&#34;);
+    this.clearBtn = document.getElementById(&#34;clearBtn&#34;);
+    this.toast = document.getElementById(&#34;toast&#34;);
+    this.spinner = document.querySelector(&#34;.spinner&#34;);
+    this.btnText = document.querySelector(&#34;.btn-text&#34;);
+  }
+
+  bindEvents() {
+    this.summarizeBtn.addEventListener(&#34;click&#34;, () =&gt; this.summarizeTicket());
+    this.copyBtn.addEventListener(&#34;click&#34;, () =&gt; this.copySummary());
+    this.clearBtn.addEventListener(&#34;click&#34;, () =&gt; this.clearAll());
+  }
+
+  async summarizeTicket() {
+    const ticketText = this.ticketInput.value.trim();
+
+    if (!ticketText) {
+      this.showToast(&#34;Please enter ticket content to summarize&#34;, &#34;error&#34;);
+      return;
+    }
+    this.setLoading(true);
+
+    try {
+      const summary = await this.getSummary(ticketText);
+      this.displayResults(summary);
+      this.showToast(&#34;Ticket summarized successfully!&#34;, &#34;success&#34;);
+    } catch (error) {
+      this.showToast(&#34;Error processing ticket. Please try again.&#34;, &#34;error&#34;);
+      console.error(&#34;Summarization error:&#34;, error);
+    } finally {
+      this.setLoading(false);
+    }
+  }
+
+  async getSummary(ticketText) {
+    const data = {
+      content: ticketText,
+      summary_type: this.summaryType.value.trim(),
+      priority: this.priority.value.trim(),
+    };
+    const req = await fetch(&#34;/api/summarize&#34;, {
+      method: &#34;POSt&#34;,
+      headers: { &#34;Content-Type&#34;: &#34;application/json&#34; },
+      body: JSON.stringify(data),
+    });
+    const res = await req.json();
+    return res;
+  }
+
+  displayResults(result) {
+    this.summaryOutput.innerHTML = result.summary.replace(/\n/g, &#34;&lt;br&gt;&#34;);
+    this.detectedPriority.textContent = result.priority;
+    this.detectedPriority.className = `value priority-badge priority-${result.priority}`;
+    this.category.textContent = result.category;
+    this.sentiment.textContent = result.sentiment;
+
+    this.outputSection.style.display = &#34;block&#34;;
+    this.outputSection.scrollIntoView({ behavior: &#34;smooth&#34; });
+  }
+
+  async copySummary() {
+    try {
+      const summaryText = this.summaryOutput.textContent;
+      await navigator.clipboard.writeText(summaryText);
+      this.showToast(&#34;Summary copied to clipboard!&#34;, &#34;success&#34;);
+    } catch (error) {
+      this.showToast(&#34;Failed to copy to clipboard&#34;, &#34;error&#34;);
+    }
+  }
+
+  clearAll() {
+    this.ticketInput.value = &#34;&#34;;
+    this.outputSection.style.display = &#34;none&#34;;
+    this.summaryType.selectedIndex = 0;
+    this.priority.selectedIndex = 0;
+    this.showToast(&#34;Form cleared&#34;, &#34;info&#34;);
+  }
+
+  setLoading(isLoading) {
+    if (isLoading) {
+      this.spinner.style.display = &#34;inline-block&#34;;
+      this.btnText.textContent = &#34;Processing...&#34;;
+      this.summarizeBtn.disabled = true;
+    } else {
+      this.spinner.style.display = &#34;none&#34;;
+      this.btnText.textContent = &#34;Summarize Ticket&#34;;
+      this.summarizeBtn.disabled = false;
+    }
+  }
+
+  showToast(message, type = &#34;info&#34;) {
+    this.toast.textContent = message;
+    this.toast.className = `toast toast-${type}`;
+    this.toast.style.display = &#34;block&#34;;
+
+    setTimeout(() =&gt; {
+      this.toast.style.display = &#34;none&#34;;
+    }, 3000);
+  }
+}
+
+// Initialize the application
+document.addEventListener(&#34;DOMContentLoaded&#34;, () =&gt; {
+  new TicketSummarizer();
+});
+</pre>
+<h2 is-upgraded><strong>Preview the Frontend</strong></h2>
+<p>At this point, we have successfully bootstrapped the frontend side of things. To verify the setup, we can preview the current application.</p>
+<aside class="warning"><p><strong>Note</strong>: In the cloud shell editor, at the bottom left corner, verify your project is already selected. If a project hasn&#39;t been selected, you would see something like the following:</p>
+<p class="image-container"><img style="width: 610.00px" src="img/5720f04cc50088c8.png"></p>
+<p>If this is the case, select the highlighted section. It should trigger a prompt. Pick the select new project option, and choose the project you initially created earlier.</p>
+<p class="image-container"><img style="width: 610.00px" src="img/50a0e475a3d5ba.png"></p>
+</aside>
+<ol type="1" start="1">
+<li>At the top right corner of the editor, click the  <strong>Open Terminal </strong> to return back to the Cloud</li>
+</ol>
+<p class="image-container"><img style="width: 408.00px" src="img/2f6b9f4844dc1dd8.png"></p>
+<ol type="1" start="2">
+<li>In the terminal, change into the <strong>text-summarizer/static </strong>directory</li>
+</ol>
+<pre>cd text-summarizer/static</pre>
+<ol type="1" start="3">
+<li>From within the static folder, start a simple Python web server on port 8080.</li>
+</ol>
+<pre> python -m http.server 8080</pre>
+<ol type="1" start="4">
+<li>At the top right of the shell, click the web preview button and then <strong>Preview on port 8080</strong></li>
+</ol>
+<p class="image-container"><img style="width: 453.50px" src="img/682375995b025ba6.png"></p>
+<p>A new tab should open up with a preview of the Frontend looking like the following. You might have to edit the preview URL, removing every query parameter (e.g ?authuser=0) so as to show the right page.</p>
+<p class="image-container"><img style="width: 624.00px" src="img/d156cbb788bdb168.png"></p>
+<p><strong>Good Job!</strong> Now that we have successfully built the frontend, we can focus on the main parts: integrating Gemini using Python.</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Build the Backend" duration="1">
+        <p>Now that you&#39;ve seen how the pieces fit together, it&#39;s time to build the backend service that powers your AI ticket summarizer. The backend will handle incoming requests, call the Gemini API through the <a href="https://cloud.google.com/vertex-ai/generative-ai/docs/sdks/overview" target="_blank">GenAI SDK</a>, and return the results in a clean, structured format.</p>
+<p>To keep things simple and familiar, we&#39;ll use <a href="https://flask.palletsprojects.com/en/stable/" target="_blank">Flask</a>, a lightweight Python web framework that makes it easy to create REST APIs. Flask allows us to define endpoints, accept JSON input, and return AI-generated summaries and metadata as JSON responses.</p>
+<h4 is-upgraded><strong>Flask REST API</strong></h4>
+<p>Flask turns your Python functions into HTTP endpoints with just a few lines of code. In this codelab, you&#39;ll create a  <code>/api/summarize</code> endpoint that accepts ticket content, sends it to Gemini, and responds with a summary, sentiment, and priority. This abstraction keeps the Gemini integration clean and makes it reusable across different parts of the application.</p>
+<h4 is-upgraded><strong>GenAI SDK</strong></h4>
+<p>The Generative AI SDK provides a simple interface for calling Gemini models. Instead of writing raw API requests, you&#39;ll use high-level methods to send prompts and retrieve responses. This reduces boilerplate, handles authentication, and ensures consistent integration across all platforms. Together, Flask and the GenAI SDK create a backend that is:</p>
+<p><strong>Modular</strong> – a REST API that other services or UIs can consume.</p>
+<p><strong>Reusable</strong> – once built, any client (web, mobile, Cloud Run service) can call it.</p>
+<p><strong>Extensible</strong> – you can easily add new endpoints or enrich outputs with more AI features.</p>
+<p>By the end of this section, you&#39;ll have a working backend that bridges your ticket data and Gemini, ready to be deployed on Cloud Run. Steps are described below.</p>
+<p>Back in the Cloud Shell Editor, create <code>app.py</code> and <code>requirements.txt</code> files. These files will be used for the backend implementation and managing dependencies, respectively. The resulting project structure should look like the following:</p>
+<p class="image-container"><img style="width: 542.00px" src="img/a0ed8f5d818bcd4b.png"></p>
+<p>In the requirements.txt file, list the required dependencies for this project</p>
+<h3 is-upgraded><a href="https://github.com/Emmanuerl/ai-ticket-summarizer/blob/main/requirements.txt" target="_blank">requirements.txt</a></h3>
+<p>Flask~=3.1.2</p>
+<p>google-genai~=1.39.1</p>
+<p>Open the Cloud editor <strong>Terminal</strong>. This is similar to Cloud Shell, but it is integrated within the Cloud Editor. This way, we do not have to switch between Cloud Shell and Cloud Editor to switch commands. Click the Terminal button at the top left menu and then select <strong>New Terminal</strong></p>
+<h2 is-upgraded><img style="width: 624.00px" src="img/4e1a936cd1d94a7f.png"></h2>
+<p>In the newly opened Terminal, run the following commands. At this point, we will integrate the Gemini API Key we created earlier on</p>
+<h3 is-upgraded><strong>setup.sh</strong></h3>
+<pre># Ensure your project is correctly set
+gcloud config set project &lt;YOUR_PROJECT_ID&gt;
+
+# Add your Gemini Key as an env variable
+export GEMINI_API_KEY=&lt;YOUR_GEMINI_API_KEY&gt;</pre>
+<p>Install the backend dependencies as declared in the <code>requirements.txt</code> file.</p>
+<pre>pip install -r requirements.txt</pre>
+<ol type="1" start="1">
+<li>First import and initialise the necessary dependencies with appropriate validation where necessary.</li>
+</ol>
+<h3 is-upgraded><a href="https://github.com/Emmanuerl/ai-ticket-summarizer/blob/main/app.py" target="_blank">app.py</a></h3>
+<pre>import os
+from flask import Flask, request
+from google import genai
+
+app = Flask(__name__,static_folder=&#34;static&#34;,static_url_path=&#34;&#34;,template_folder=&#34;static&#34;)
+
+if not os.getenv(&#34;GEMINI_API_KEY&#34;):
+    print(&#34;GEMINI_API_KEY env is required&#34;)
+    exit()
+
+gemini = genai.Client(api_key=os.getenv(&#34;GEMINI_API_KEY&#34;))</pre>
+<p>The above snippet creates a new Flask instance; the (<code>static_folder="static"</code>) is used to tell Flask to serve static files (HTML, CSS, Images, etc.) from the static folder (which you should already have by now). The Gen-AI client is also initialised with a minimal validation to ensure the <code>GEMINI_API_KEY</code> is provided before initialising the client.</p>
+<ol type="1" start="2">
+<li>Next, we declare our routes: one for serving the index.html page, and the other for generating summaries. Update app.py to the following</li>
+</ol>
+<h3 is-upgraded><a href="https://github.com/Emmanuerl/ai-ticket-summarizer/blob/main/app.py" target="_blank">app.py</a></h3>
+<pre>import os
+from flask import Flask, request
+from flask.templating import render_template
+from typing import Any, Dict
+from google import genai
+import re
+import json
+
+app = Flask(__name__,static_folder=&#34;static&#34;,static_url_path=&#34;&#34;,template_folder=&#34;static&#34;)
+
+if not os.getenv(&#34;GEMINI_API_KEY&#34;):
+    print(&#34;GEMINI_API_KEY env is required&#34;)
+    exit()
+
+client = genai.Client(api_key=os.getenv(&#34;GEMINI_API_KEY&#34;))
+
+@app.get(&#34;/&#34;)
+def index_page(): return render_template(&#39;index.html&#39;)
+
+@app.post(&#34;/api/summarize&#34;)
+def summarize():
+    &#34;&#34;&#34;
+    Summarizes a ticket
+    &#34;&#34;&#34;
+    data: Any = request.json
+
+    summary = get_summary(data.get(&#34;content&#34;),data.get(&#34;summary_type&#34;),data.get(&#34;priority&#34;))
+    return summary</pre>
+<p>At this point, we have now declared all routes. In the summarise handler, we make use of the <a href="https://tedboy.github.io/flask/generated/generated/flask.Request.html" target="_blank">Flask request instance</a> to access the JSON content sent in the request body. The final part of this backend involves the AI summary functionality.</p>
+<ol type="1" start="3">
+<li>To summarise content using a model, an appropriate prompt must be provided to the model, specifying instructions for every input and output format. Here&#39;s a sufficient prompt that works for our use case</li>
+</ol>
+<h3 is-upgraded><a href="https://github.com/Emmanuerl/ai-ticket-summarizer/blob/4b638e9b01c08cff0dd42f92dc66231eb666e8ac/app.py#L30" target="_blank">app.py</a></h3>
+<pre>def get_summary(content:str, format: str, priority:str):
+    prompt = f&#39;&#39;&#39;
+    You are a support assistant tasked with summarizing tickets.
+    Here is the ticket content:
+    {content}
+
+    The summary input should follow these rules:
+    - Format: {format} (options: brief, detailed, or bullet points).
+    - Priority: {priority} (options: urgent, high, medium, low, or auto detect).
+        - If &#34;auto detect,&#34; infer the priority based on urgency, impact, and customer sentiment.
+
+    Instructions:
+    1. Focus only on the key issue(s), relevant context, and any actions taken or requested.
+    2. Be concise, clear, and avoid unnecessary repetition.
+    3. If priority is auto-detected, state the detected priority.
+    4. Ensure the summary is ready for quick triage by support teams.
+    5. Determine an appropriate [SENTIMENT] from the following list (positive: [happy, excellent, good, pleased, satisfies], negative: [angry, frustrated, terrible, awful, disappointed])
+    6. Determine an appropriate one word [CATEGORY]
+
+    provide the summary as a raw JSON object. The structure of the JSON should be the following:
+    &#123;&#123;
+        &#34;summary&#34;: &#34;[SUMMARY]&#34;,
+        &#34;category&#34;:&#34;[CATEGORY]&#34;,
+        &#34;sentiment&#34;:&#34;[SENTIMENT]&#34;,
+        &#34;priority&#34;: &#34;[PRIORITY]&#34;
+    }}
+    &#39;&#39;&#39;
+    response = client.models.generate_content(
+        model=&#34;gemini-2.5-flash&#34;,
+        contents=prompt,
+    )
+    return extract_json(response.text)
+</pre>
+<aside class="special"><p><strong>TIP:</strong> The importance of best prompt practices can never be overstated when working with LLMs, especially. To get yourself up to speed, check out this <a href="https://cloud.google.com/discover/what-is-prompt-engineering?hl=en" target="_blank">introduction</a> to prompt engineering course as well as <a href="https://ai.google.dev/gemini-api/docs/prompting-strategies" target="_blank">this resource</a> on best prompt design strategies for AI engineers.</p>
+</aside>
+<p>By merging all snippets, we arrive at a fully implemented AI summarizer exposed via a REST API</p>
+<h3 is-upgraded><a href="https://github.com/Emmanuerl/ai-ticket-summarizer/blob/main/app.py" target="_blank">app.py</a></h3>
+<pre><code>import os
+from flask import Flask, request
+from flask.templating import render_template
+from typing import Any, Dict
+from google import genai
+import re
+import json
+
+app = Flask(__name__,static_folder=&#34;static&#34;,static_url_path=&#34;&#34;,template_folder=&#34;static&#34;)
+
+if not os.getenv(&#34;GEMINI_API_KEY&#34;):
+    print(&#34;GEMINI_API_KEY env is required&#34;)
+    exit()
+
+client = genai.Client(api_key=os.getenv(&#34;GEMINI_API_KEY&#34;))
+
+@app.get(&#34;/&#34;)
+def index_page(): return render_template(&#39;index.html&#39;)
+
+@app.post(&#34;/api/summarize&#34;)
+def summarize():
+    &#34;&#34;&#34;
+    Summarizes a ticket
+    &#34;&#34;&#34;
+    data: Any = request.json
+
+    summary = get_summary(data.get(&#34;content&#34;),data.get(&#34;summary_type&#34;),data.get(&#34;priority&#34;))
+    return summary
+
+def get_summary(content:str, format: str, priority:str):
+    prompt = f&#39;&#39;&#39;
+    You are a support assistant tasked with summarizing tickets.
+    Here is the ticket content:
+    {content}
+
+    The summary input should follow these rules:
+    - Format: {format} (options: brief, detailed, or bullet points).
+    - Priority: {priority} (options: urgent, high, medium, low, or auto detect).
+        - If &#34;auto detect,&#34; infer the priority based on urgency, impact, and customer sentiment.
+
+    Instructions:
+    1. Focus only on the key issue(s), relevant context, and any actions taken or requested.
+    2. Be concise, clear, and avoid unnecessary repetition.
+    3. If priority is auto-detected, state the detected priority.
+    4. Ensure the summary is ready for quick triage by support teams.
+    5. Determine an appropriate [SENTIMENT] from the following list (positive: [happy, excellent, good, pleased, satisfies], negative: [angry, frustrated, terrible, awful, disappointed])
+    6. Determine an appropriate one word [CATEGORY]
+
+    provide the summary as a raw JSON object. The structure of the JSON should be the following:
+    ```
+    &#123;&#123;
+        &#34;summary&#34;: &#34;[SUMMARY]&#34;,
+        &#34;category&#34;:&#34;[CATEGORY]&#34;,
+        &#34;sentiment&#34;:&#34;[SENTIMENT]&#34;,
+        &#34;priority&#34;: &#34;[PRIORITY]&#34;
+    }}
+    ```
+    &#39;&#39;&#39;
+    response = client.models.generate_content(
+        model=&#34;gemini-2.5-flash&#34;,
+        contents=prompt,
+    )
+    return extract_json(response.text)
+
+
+def extract_json(blob: str | None)-&gt;Dict:
+    if not blob: return {}
+    json_match = re.search(r&#34;```json\s*(.*?)\s*```&#34;, blob, re.DOTALL)
+    if json_match:
+        extracted_json_str = json_match.group(1)
+        return json.loads(extracted_json_str)
+    else:
+        print(&#34;No JSON found within ```json``` markers.&#34;)
+        return {}</code></pre>
+<p>In the next section, we shall test all that we have written.</p>
+<h2 is-upgraded><strong>End-to-end Testing</strong></h2>
+<p>To test all we&#39;ve done so far, we will use a Flask development server</p>
+<ol type="1" start="1">
+<li>In the same Cloud Editor Terminal, run the following command</li>
+</ol>
+<pre># Re-declare the Gemini API just in case
+export GEMINI_API_KEY=YOUR_GEMINI_API_KEY
+
+# Run the Flask development server
+flask run --host 0.0.0.0 -p 8080</pre>
+<p>If this goes successfully, you should see something like the following.</p>
+<p class="image-container"><img style="width: 624.00px" src="img/57fe952936cfa913.png"></p>
+<ol type="1" start="2">
+<li>Preview the application using the Web preview button at the top right, and then select <strong>&#39;Preview&#39; on port 8080</strong>. Notice we&#39;re also running the Flask dev server on port 8080 as well?</li>
+</ol>
+<p class="image-container"><img style="width: 624.00px" src="img/6eed0288be1e6f4b.png"></p>
+<ol type="1" start="3">
+<li>If successful, the previously bootstrapped frontend should be shown again; this time, it&#39;s served using Flask&#39;s web server. This also implies the Ticket summarizer endpoint should work as expected. Provide a sample input such as the following:</li>
+</ol>
+<p><em>&#34;Customer complains that the mobile app crashes every time they try to upload a profile picture. They are using iOS 17. The issue persists after reinstalling the app. No workaround found.&#34;</em></p>
+<p class="image-container"><img style="width: 624.00px" src="img/749eda154e8ef969.png"></p>
+<ol type="1" start="4">
+<li>Click the <strong>Summarize Ticket</strong> button and observe the output. It should look like the following.</li>
+</ol>
+<p class="image-container"><img style="width: 624.00px" src="img/bd42d7d531a7c59f.png"></p>
+<p>If you&#39;ve gotten to this point, congratulations! In the next Section, we&#39;ll deploy this application to Cloud Run.</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Deploy To Cloud Run" duration="5">
+        <p>Having successfully built and tested the app, let&#39;s see how we can deploy the application and make it publicly accessible. For this, we will use Cloud Run, a managed production-ready, easy-to-use service. Cloud Run allows you, the developer, to either provide the source code for your application or a Docker image. For this codelab (and most workflows), we will use the Docker image option. The process involves:</p>
+<ol type="1" start="1">
+<li>Building a Docker image</li>
+<li>Pushing the image to Artifact Registry</li>
+<li>Creating (or updating) a Cloud Run service with this new image</li>
+</ol>
+<p>To ensure a reliable deployment pipeline, we will utilise Cloud Build, a CI/CD platform provided by Google Cloud, which seamlessly integrates with all our existing work. Firstly, enable the necessary APIs.</p>
+<p><a href="https://console.cloud.google.com/flows/enableapi?apiid=run.googleapis.com,cloudbuild.googleapis.com,artifactregistry.googleapis.com&redirect=https://console.cloud.google.com" target="_blank"><paper-button class="colored" raised>Enable APIs</paper-button></a></p>
+<ol type="1" start="1">
+<li>Create a <code>Dockerfile</code> in the project root directory with the following.</li>
+</ol>
+<h3 is-upgraded><a href="https://github.com/Emmanuerl/ai-ticket-summarizer/blob/main/Dockerfile" target="_blank">Dockerfile</a></h3>
+<pre>FROM python:3.13-alpine
+
+# switch working directory
+WORKDIR /app
+
+# copy the requirements file into the image
+COPY ./requirements.txt .
+
+# install the dependencies and packages in the requirements file
+RUN pip install -r requirements.txt &amp;&amp; pip install gunicorn
+
+# copy every content from the local file to the image
+COPY . .
+
+CMD [&#34;gunicorn&#34;,&#34;-b&#34;,&#34;0.0.0.0:8080&#34;,&#34;app:app&#34;]</pre>
+<ol type="1" start="2">
+<li>Create a <code>cloudbuild.yaml</code> file in the project root directory. This will contain the build steps used by Cloud Build for deployments.</li>
+</ol>
+<h3 is-upgraded><a href="https://github.com/Emmanuerl/ai-ticket-summarizer/blob/main/cloudbuild.yaml" target="_blank">cloudbuild.yaml</a></h3>
+<pre>steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -t
+      - us-central1-docker.pkg.dev/$PROJECT_ID/$_REPO_NAME/app:$BUILD_ID
+      - .
+
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - &#34;us-central1-docker.pkg.dev/$PROJECT_ID/$_REPO_NAME/app:$BUILD_ID&#34;
+
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ticket-summarizer
+      - --image
+      - us-central1-docker.pkg.dev/$PROJECT_ID/$_REPO_NAME/app:$BUILD_ID
+      - --region
+      - us-central1
+      - --set-env-vars
+      - GEMINI_API_KEY=$_GEMINI_API_KEY
+
+images:
+  - us-central1-docker.pkg.dev/$PROJECT_ID/$_REPO_NAME/app:$BUILD_ID</pre>
+<ol type="1" start="3">
+<li>Using the Cloud Editor Terminal, create an Artifact Registry repository called <code>ticket-summarizer</code></li>
+</ol>
+<pre>gcloud artifacts repositories create ticket-summarizer --repository-format=docker --location=us-central1</pre>
+<ol type="1" start="4">
+<li>Finally, trigger a deployment by submitting a build. Replace the <strong><code>YOUR_GEMINI_API_KEY </code></strong><code>placeholder with your Gemini API Key.</code></li>
+</ol>
+<pre>gcloud builds submit \
+--substitutions &#34;_GEMINI_API_KEY=YOUR_GEMINI_API_KEY,_REPO_NAME=ticket-summarizer&#34;</pre>
+<h2 is-upgraded><strong>Verify Successful Deployment</strong></h2>
+<ol type="1" start="1">
+<li>Go to the <a href="https://console.cloud.google.com/run" target="_blank">Cloud Run console</a>. On the list of services, you should see the <strong>ticket-summarizer </strong>service. Open it</li>
+</ol>
+<p class="image-container"><img style="width: 624.00px" src="img/e33508a74982f7a3.png"></p>
+<ol type="1" start="2">
+<li>Open the security tab</li>
+</ol>
+<p class="image-container"><img style="width: 624.00px" src="img/ea0d0f3898ce6fbd.png"></p>
+<ol type="1" start="3">
+<li>By default, Cloud Run services require authenticated access. Disable this so the service can be publicly accessible</li>
+</ol>
+<p class="image-container"><img style="width: 456.50px" src="img/6824adae0cec3f3e.png"></p>
+<ol type="1" start="4">
+<li>Copy the URL of the Cloud Run Service and open it. You should have a fully functional and complete application, now managed by Cloud Run.</li>
+</ol>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Congratulations" duration="0">
+        <p>Congratulations, you&#39;ve successfully built and deployed an AI-powered Ticket Summarizer 🎉 </p>
+<p>You created a smart backend using the Gen-AI SDK, containerised this application and deployed it to Cloud Run using Cloud Build..</p>
+<p>You now know the key steps required to build and deploy simple AI-powered apps!</p>
+<h2 is-upgraded><strong>What&#39;s next?</strong></h2>
+<p>Extend the app to:</p>
+<ul>
+<li>Handle image uploads</li>
+</ul>
+<h2 is-upgraded><strong>Further reading</strong></h2>
+<ul>
+<li><a href="https://www.cloudskillsboost.google/paths/236" target="_blank">Gemini for Google Cloud</a></li>
+</ul>
+<h2 is-upgraded><strong>Reference docs</strong></h2>
+<ul>
+<li><a href="https://cloud.google.com/build/docs" target="_blank">Google Cloud Build docs</a></li>
+<li><a href="https://cloud.google.com/run/docs" target="_blank">Google Cloud Run docs</a></li>
+</ul>
+
+
+      </google-codelab-step>
+    
+  </google-codelab>
+
+  <script src="https://storage.googleapis.com/claat-public/native-shim.js"></script>
+  <script src="https://storage.googleapis.com/claat-public/custom-elements.min.js"></script>
+  <script src="https://storage.googleapis.com/claat-public/prettify.js"></script>
+  <script src="https://storage.googleapis.com/claat-public/codelab-elements.js"></script>
+  <script src="//support.google.com/inapp/api.js"></script>
+
+</body>
+</html>
