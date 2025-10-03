@@ -1,9 +1,31 @@
+import os
 from flask import Flask, request
 from flask.templating import render_template
 from typing import Any, Dict
 from google import genai
 import re
 import json
+
+app = Flask(__name__,static_folder="static",static_url_path="",template_folder="static")
+
+if not os.getenv("GEMINI_API_KEY"):
+    print("GEMINI_API_KEY env is required")
+    exit()
+
+client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+
+@app.get("/")
+def index_page(): return render_template('index.html')
+
+@app.post("/api/summarize")
+def summarize():
+    """
+    Summarizes a ticket
+    """
+    data: Any = request.json
+
+    summary = get_summary(data.get("content"),data.get("summary_type"),data.get("priority"))
+    return summary
 
 def get_summary(content:str, format: str, priority:str):
     prompt = f'''
@@ -25,12 +47,14 @@ def get_summary(content:str, format: str, priority:str):
     6. Determine an appropriate one word [CATEGORY]
 
     provide the summary as a raw JSON object. The structure of the JSON should be the following:
+    ```
     {{
         "summary": "[SUMMARY]",
         "category":"[CATEGORY]",
         "sentiment":"[SENTIMENT]",
         "priority": "[PRIORITY]"
     }}
+    ```
     '''
     response = client.models.generate_content(
         model="gemini-2.5-flash",
@@ -48,21 +72,3 @@ def extract_json(blob: str | None)->Dict:
     else:
         print("No JSON found within ```json``` markers.")
         return {}
-
-
-app = Flask(__name__,static_folder="static",static_url_path="",template_folder="static")
-
-client = genai.Client(api_key='GEMINI_API_KEY')
-
-@app.get("/")
-def index_page(): return render_template('index.html')
-
-@app.post("/api/summarize")
-def summarize():
-    """
-    Summarizes a ticket
-    """
-    data: Any = request.json
-
-    summary = get_summary(data.get("content"),data.get("summary_type"),data.get("priority"))
-    return summary
